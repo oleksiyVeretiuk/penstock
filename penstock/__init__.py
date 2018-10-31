@@ -44,10 +44,17 @@ def create_replication(replicator_db, target, source):
         'source': source
     })
     replicator_document = replicator_db.get(replicator_document_id)
-    replication_direction = \
-        '{0.hostname}{0.path} -> {1.hostname}{1.path}'.format(
-            urlparse(replicator_document.get('source', '')),
-            urlparse(replicator_document.get('target', '')))
+    parsed_source = urlparse(replicator_document.get('source', ''))
+    if parsed_source.hostname:
+        replication_direction = \
+            '{0.hostname}{0.path} -> {1.hostname}{1.path}'.format(
+                parsed_source,
+                urlparse(replicator_document.get('target', '')))
+    else:
+        replication_direction = \
+            '{0.path} -> {1.hostname}{1.path}'.format(
+                parsed_source,
+                urlparse(replicator_document.get('target', '')))
     logger.info("Replication created ({})".format(replication_direction),
                 extra={'MESSAGE_ID': 'CREATE_REPLICATION'})
     return replicator_document
@@ -58,8 +65,7 @@ def get_sources_list(configuration):
         consul_conf = configuration['consul_sources']
         c = consul.Consul()
         services = c.catalog.service(consul_conf['name'], tag=consul_conf.get('tag', None))[1]
-        return set(["http://{1[user]}:{1[password]}@{0[Address]}:{0[ServicePort]}/{1[database]}".format(service, consul_conf)
-                    for service in services])
+        return set([service['ServiceID'] for service in services])
     elif 'dns_sources' in configuration:
         consul_conf = configuration['dns_sources']
         return set(["http://{1[user]}:{1[password]}@{0}:{1[port]}/{1[database]}".format(str(i[4][0]), consul_conf)
