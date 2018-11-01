@@ -9,7 +9,7 @@ import logging
 from logging.config import dictConfig
 import argparse
 import gevent
-import consul
+from consul import Consul
 import socket
 from random import sample
 from couchdb.client import Database, Server
@@ -21,6 +21,9 @@ from urlparse import urlparse
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 logger = logging.getLogger('replichecker')
+
+
+CHECK_REPLICATION = True
 
 
 def get_tasks_for_replications(server, replicators_documents):
@@ -63,7 +66,7 @@ def create_replication(replicator_db, target, source):
 def get_sources_list(configuration):
     if 'consul_sources' in configuration:
         consul_conf = configuration['consul_sources']
-        c = consul.Consul()
+        c = Consul()
         services = c.catalog.service(consul_conf['name'], tag=consul_conf.get('tag', None))[1]
         return set([service['ServiceID'] for service in services])
     elif 'dns_sources' in configuration:
@@ -84,11 +87,11 @@ def run_checker(configuration):
                      extra={'MESSAGE_ID': 'REPLICATIONS_COUNT_IS_LOWER'})
         return
     black_listed_sources = set([])
-    while 1:
+    while CHECK_REPLICATION:
         replicator_documents = []
         for i in range(minimal_replications):
+            replicator_document = None
             for replication_id in replicator_db:
-                replicator_document = None
                 if replication_id.startswith('_design/'):
                     continue
                 temp_replicator_document = replicator_db.get(replication_id)
@@ -129,6 +132,7 @@ def run_checker(configuration):
 
         logger.info("Wait replication.")
         sleep(10)
+
 
 def main():
     parser = argparse.ArgumentParser(description='---- Penstock ----')
