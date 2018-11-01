@@ -28,5 +28,10 @@ setup(name='penstock',
           'console_scripts': [
               'penstock = penstock:main'
           ]
-      }
+      },
+      tests_require=[
+            'mock',
+            'nose',
+            'munch'
+      ]
       )
